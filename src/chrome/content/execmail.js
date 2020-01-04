@@ -1,7 +1,7 @@
 /*
  * ExecMail
  *
- * Copyright(c) 2007-2012 Iwasa Kazmi
+ * Copyright(c) 2007-2018 Iwasa Kazmi
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -62,7 +62,7 @@ var gExecMail_0B2B5EAB = {
             if (text != null) {
                 text = text.replace(/\r\n-- \r\n.*/, '\r\n'); // remove signature
                 var mail = new this.MailObject();
-                var sandbox = Components.utils.Sandbox('about:blank');
+                var sandbox = Components.utils.Sandbox(window);
                 sandbox.mail = mail;
                 try {
                     Components.utils.evalInSandbox(text, sandbox);
