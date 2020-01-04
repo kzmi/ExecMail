@@ -59,14 +59,16 @@ var gExecMail_0B2B5EAB = {
     execMail: function()
         {
             var text = this.getCurrentContentText();
-            if (text) {
+            if (text != null) {
+                text = text.replace(/\r\n-- \r\n.*/, '\r\n'); // remove signature
                 var mail = new this.MailObject();
-
+                var sandbox = Components.utils.Sandbox('about:blank');
+                sandbox.mail = mail;
                 try {
-                    eval(text);
-                } catch(e) {
-                    dump('#ExecMail# JavaScript eval error: ' + e);
-                    alert('JavaScript eval error: ' + e);
+                    Components.utils.evalInSandbox(text, sandbox);
+                }
+                catch(ex) {
+                    this.logScriptError(ex);
                     return;
                 }
 
@@ -144,7 +146,7 @@ var gExecMail_0B2B5EAB = {
         {
             // from MsgComposeCommands.js, LoadIdentity()
             try {
-                gMsgCompose.SetSignature(gCurrentIdentity);
+                gMsgCompose.identity = gCurrentIdentity;
             } catch(ex) {
                 dump("### Cannot set the signature: " + ex + "\n");
             }
@@ -230,6 +232,12 @@ var gExecMail_0B2B5EAB = {
                 'mail.appendSignature = true;',
                 '',
             ];
-        }
+        },
 
+    logScriptError: function(obj) {
+            var console = Components.classes["@mozilla.org/consoleservice;1"].getService(Components.interfaces.nsIConsoleService);
+            var scriptError = Components.classes["@mozilla.org/scripterror;1"].createInstance(Components.interfaces.nsIScriptError);
+            scriptError.init(obj, 'ExecMail', null, 0, 0, Components.interfaces.nsIScriptError.errorFlag, "content javascript");
+            console.logMessage(scriptError);
+        }
 };
