@@ -1,0 +1,4 @@
+content		execmail		chrome/content/
+locale		execmail	en	chrome/locale/en/
+locale		execmail	ja	chrome/locale/ja/
+overlay		chrome://messenger/content/messengercompose/messengercompose.xul	chrome://execmail/content/messengercompose.xul
