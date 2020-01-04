@@ -1,7 +1,7 @@
 /*
  * ExecMail
  *
- * Copyright(c) 2007-2010 Iwasa Kazmi
+ * Copyright(c) 2007-2012 Iwasa Kazmi
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -124,7 +124,11 @@ var gExecMail_0B2B5EAB = {
 
             if (editor) {
                 editor.selectAll();
-                editor.deleteSelection(0);
+                if (this.versionFrom('15.0.0')) {
+                    editor.deleteSelection(editor.eNone, editor.eStrip);
+                } else {
+                    editor.deleteSelection(editor.eNone);
+                }
                 editor.beginningOfDocument();
 
                 if (newBody == null)
@@ -232,6 +236,12 @@ var gExecMail_0B2B5EAB = {
                 'mail.appendSignature = true;',
                 '',
             ];
+        },
+
+    versionFrom: function(verFrom) {
+            var appInfo = Components.classes["@mozilla.org/xre/app-info;1"].getService(Components.interfaces.nsIXULAppInfo);
+            var versionChecker = Components.classes["@mozilla.org/xpcom/version-comparator;1"].getService(Components.interfaces.nsIVersionComparator);
+            return versionChecker.compare(appInfo.version, verFrom) >= 0;
         },
 
     logScriptError: function(obj) {
