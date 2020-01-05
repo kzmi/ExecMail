@@ -1,7 +1,7 @@
 /*
  * ExecMail
  *
- * Copyright(c) 2007-2018 Iwasa Kazmi
+ * Copyright(c) 2007-2020 Iwasa Kazmi
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,232 +22,234 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+((window) => {
+  const debug = false;
 
-var gExecMail_0B2B5EAB = {
+  const { Services } = ChromeUtils.import('resource://gre/modules/Services.jsm');
 
-    MailObject: function()
-        {
-            this.subject = null;
-            this.body = null;
-            this.to = new Array();
-            this.cc = new Array();
-            this.bcc = new Array();
-            this.appendSignature = false;
-        },
+  const OutputLFLineBreak = Components.interfaces.nsIDocumentEncoder.OutputLFLineBreak;
 
-    insertSample: function()
-        {
-            var editor = GetCurrentEditor();
+  function log(message) {
+    Services.console.logStringMessage(message);
+  }
 
-            if (editor) {
-                var sampleArray = this.getSampleCodeArray();
+  function debugLog(message) {
+    if (debug) {
+      Services.console.logStringMessage(message);
+    }
+  }
 
-                if (editor.contentsMIMEType == 'text/plain') {
-                    var text = this.joinForPlainText(sampleArray);
-                    editor.insertText(text);
-                }
-                else if (editor.contentsMIMEType == 'text/html') {
-                    var text = this.joinForHtml(sampleArray);
-                    editor.insertHTML(text);
-                }
-                else {
-                    dump('#ExecMail# unsupported content type : ' + editor.contentsMIMEType);
-                }
-            }
-        },
+  function reportError(err) {
+    Components.utils.reportError(err);
+  }
 
-    execMail: function()
-        {
-            var text = this.getCurrentContentText();
-            if (text != null) {
-                text = text.replace(/\r\n-- \r\n.*/, '\r\n'); // remove signature
-                var mail = new this.MailObject();
-                var sandbox = Components.utils.Sandbox(window);
-                sandbox.mail = mail;
-                try {
-                    Components.utils.evalInSandbox(text, sandbox);
-                }
-                catch(ex) {
-                    this.logScriptError(ex);
-                    return;
-                }
+  // returns current nsMsgCompose
+  function getMsgCompose() {
+    // use gMsgCompose which is defined globally in
+    // chrome/messenger/content/messenger/messengercompose/MsgComposeCommands.js
+    return window.gMsgCompose;
+  }
 
-                if (mail.subject) {
-                    this.replaceSubject(mail.subject);
-                }
+  class MailObject {
+    constructor() {
+      this.subject = null;
+      this.body = null;
+      this.to = new Array();
+      this.cc = new Array();
+      this.bcc = new Array();
+      this.appendSignature = false;
+    }
+  }
 
-                if (mail.body) {
-                    this.replaceBody(mail.body);
-                } else {
-                    this.replaceBody(null);
-                }
+  function getSampleCode() {
+    const strbundle = window.document.getElementById('execmailBundle');
+    const sampleCode =
+      '/*\n' +
+      ` * ${strbundle.getString('ExecMailSample')}\n` +
+      ' */\n' +
+      '\n' +
+      'var mailHost = "@example.com";\n' +
+      'var myAddress = "abc@example.com";\n' +
+      '\n' +
+      `// ${strbundle.getString('MailObjectDesc')}\n` +
+      '// {\n' +
+      '//   subject: null,\n' +
+      '//   body: null,\n' +
+      '//   to: [],\n' +
+      '//   cc: [],\n' +
+      '//   bcc: [],\n' +
+      '//   appendSignature: false\n' +
+      '// }\n' +
+      '\n' +
+      `// ${strbundle.getString('SpecifySubject')}\n` +
+      'mail.subject = "Notification";\n' +
+      '\n' +
+      `// ${strbundle.getString('SpecifyMessageBody')}\n` +
+      'mail.body = "Hello,\\r\\n\\r\\nbye";\n' +
+      '\n' +
+      `// ${strbundle.getString('HtmlTagsAreAllowed')}\n` +
+      '// mail.body = \'<font size="20">Hello,</font><br><br><b>bye</b>\';\n' +
+      '\n' +
+      `// ${strbundle.getString('AddToRecipients')}\n` +
+      'mail.to.push("person1" + mailHost);\n' +
+      'mail.to.push("person2" + mailHost);\n' +
+      'mail.to.push("person3" + mailHost);\n' +
+      '\n' +
+      `// ${strbundle.getString('AddSingleRecipient')}\n` +
+      'mail.to = "person1@example.com";\n' +
+      '\n' +
+      `// ${strbundle.getString('AddCCRecipients')}\n` +
+      'mail.cc.push("person4" + mailHost);\n' +
+      '\n' +
+      `// ${strbundle.getString('AddBCCRecipients')}\n` +
+      'mail.bcc.push(myAddress);\n' +
+      '\n' +
+      `// ${strbundle.getString('AppendSignature')}\n` +
+      'mail.appendSignature = true;\n';
 
-                if (mail.appendSignature) {
-                    this.appendSignature();
-                }
+    return sampleCode;
+  }
 
-                if (mail.to) {
-                    this.appendAddresses("addr_to", mail.to);
-                }
+  function insertSample() {
+    const editor = window.GetCurrentEditor();
+    if (!editor) {
+      log('ExecMail: missing editor');
+      return;
+    }
 
-                if (mail.cc) {
-                    this.appendAddresses("addr_cc", mail.cc);
-                }
+    const sampleCode = getSampleCode();
 
-                if (mail.bcc) {
-                    this.appendAddresses("addr_bcc", mail.bcc);
-                }
-            }
-        },
+    debugLog(`editor.contentsMIMEType = ${editor.contentsMIMEType}`);
+    editor.insertText(sampleCode);
+  }
 
-    getCurrentContentText: function()
-        {
-            var editor = GetCurrentEditor();
-            if (editor) {
-                return editor.outputToString('text/plain', 0);
-            } else {
-                return null;
-            }
-        },
+  function getScript(editor) {
+    const source = editor.outputToString('text/plain', OutputLFLineBreak);
 
-    replaceSubject: function(newSubject)
-        {
-            var e = GetMsgSubjectElement();
-            if (e) {
-                e.value = newSubject.toString();
-            }
-        },
+    // remove signature
+    const sigIndex = source.indexOf('\n-- \n');
+    if (sigIndex >= 0) {
+      return source.substring(0, sigIndex);
+    }
 
-    replaceBody: function(newBody)
-        {
-            var editor = GetCurrentEditor();
+    if (source.startsWith('-- \n')) {
+      return '';
+    }
 
-            if (editor) {
-                editor.selectAll();
-                if (this.versionFrom('15.0.0')) {
-                    editor.deleteSelection(editor.eNone, editor.eStrip);
-                } else {
-                    editor.deleteSelection(editor.eNone);
-                }
-                editor.beginningOfDocument();
+    return source;
+  }
 
-                if (newBody == null)
-                    return;
+  function execMail() {
+    const editor = window.GetCurrentEditor();
+    if (!editor) {
+      log('ExecMail: missing editor');
+      return;
+    }
 
-                if (editor.contentsMIMEType == 'text/plain') {
-                    editor.insertText(newBody.toString());
-                }
-                else if (editor.contentsMIMEType == 'text/html') {
-                    editor.insertHTML(newBody.toString());
-                }
-                else {
-                    dump('#ExecMail# unsupported content type : ' + editor.contentsMIMEType);
-                }
-            }
-        },
+    const script = getScript(editor);
 
-    appendSignature: function()
-        {
-            // from MsgComposeCommands.js, LoadIdentity()
-            try {
-                gMsgCompose.identity = gCurrentIdentity;
-            } catch(ex) {
-                dump("### Cannot set the signature: " + ex + "\n");
-            }
-        },
+    const mail = new MailObject();
 
-    appendAddresses: function(addrType, obj)
-        {
-            var addrArray;
-            if (obj instanceof Array) {
-                addrArray = obj;
-            } else {
-                addrArray = new Array(obj);
-            }
+    const sandbox = Components.utils.Sandbox(window);
+    sandbox.mail = mail;
+    try {
+      Components.utils.evalInSandbox(script, sandbox);
+    } catch (ex) {
+      reportError(ex);
+      return;
+    }
 
-            for (var i = 0; i < addrArray.length; i++) {
-                if (addrArray[i]) {
-                    awAddRecipient(addrType, addrArray[i].toString());
-                }
-            }
-        },
+    if (mail.subject) {
+      replaceSubject(mail.subject);
+    }
 
-    htmlEscape: function(s)
-        {
-            s = s.replace(/&/g, "&amp;");
-            s = s.replace(/>/g, "&gt;");
-            s = s.replace(/</g, "&lt;");
-            s = s.replace(/^ /, "&nbsp;");
-            return s;
-        },
+    if (mail.body) {
+      replaceBody(mail.body);
+    } else {
+      replaceBody(null);
+    }
 
-    joinForHtml: function(a)
-        {
-            var text = '';
-            for(var i = 0; i < a.length; i++) {
-                if (i != 0)
-                text += '<br/>';
-                text += this.htmlEscape(a[i].toString());
-            }
-            return text;
-        },
+    if (mail.appendSignature) {
+      appendSignature();
+    }
 
-    joinForPlainText: function(a)
-        {
-            return a.join("\r\n");
-        },
+    if (mail.to) {
+      appendAddresses('addr_to', mail.to);
+    }
 
-    getSampleCodeArray: function()
-        {
-            var strbundle = document.getElementById("execmailBundle");
+    if (mail.cc) {
+      appendAddresses('addr_cc', mail.cc);
+    }
 
-            return [
-                '/*',
-                ' * ' + strbundle.getString("ExecMailSample"),
-                ' */',
-                '',
-                'var mailHost = \'@example.com\';',
-                'var myAddress = \'abc@example.com\';',
-                '',
-                '/* ' + strbundle.getString("MailObjectDesc") + ' */',
-                '',
-                '/* ' + strbundle.getString("SpecifySubject") + ' */',
-                'mail.subject = \'Notification\';',
-                '',
-                '/* ' + strbundle.getString("SpecifyMessageBody") + ' */',
-                'mail.body = \'Hello,\\r\\nbye.\';',
-                '/* ' + strbundle.getString("HtmlTagsAreAllowed") + ' */',
-                '// mail.body = \'<font size="20">Hello,</font><br><b>bye.</b>\';',
-                '',
-                '/* ' + strbundle.getString("AddToRecipients") + ' */',
-                'mail.to.push(\'person1\' + mailHost);',
-                'mail.to.push(\'person2\' + mailHost);',
-                'mail.to.push(\'person3\' + mailHost);',
-                '/* ' + strbundle.getString("AddSingleRecipient") + ' */',
-                '// mail.to = \'person1@example.com\';',
-                '',
-                '/* ' + strbundle.getString("AddCCRecipients") + ' */',
-                'mail.cc.push(\'person4\' + mailHost);',
-                '',
-                '/* ' + strbundle.getString("AddBCCRecipients") + ' */',
-                'mail.bcc.push(myAddress);',
-                '',
-                '/* ' + strbundle.getString("AppendSignature") + ' */',
-                'mail.appendSignature = true;',
-                '',
-            ];
-        },
+    if (mail.bcc) {
+      appendAddresses('addr_bcc', mail.bcc);
+    }
+  }
 
-    versionFrom: function(verFrom) {
-            var appInfo = Components.classes["@mozilla.org/xre/app-info;1"].getService(Components.interfaces.nsIXULAppInfo);
-            var versionChecker = Components.classes["@mozilla.org/xpcom/version-comparator;1"].getService(Components.interfaces.nsIVersionComparator);
-            return versionChecker.compare(appInfo.version, verFrom) >= 0;
-        },
+  function replaceSubject(newSubject) {
+    const elem = window.GetMsgSubjectElement();
+    if (!elem) {
+      log('ExecMail: missing msgSubject');
+      return;
+    }
 
-    logScriptError: function(obj) {
-            var console = Components.classes["@mozilla.org/consoleservice;1"].getService(Components.interfaces.nsIConsoleService);
-            var scriptError = Components.classes["@mozilla.org/scripterror;1"].createInstance(Components.interfaces.nsIScriptError);
-            scriptError.init(obj, 'ExecMail', null, 0, 0, Components.interfaces.nsIScriptError.errorFlag, "content javascript");
-            console.logMessage(scriptError);
-        }
-};
+    elem.value = newSubject.toString();
+  }
+
+  function replaceBody(newBody) {
+    const editor = window.GetCurrentEditor();
+    if (!editor) {
+      log('ExecMail: missing editor');
+      return;
+    }
+
+    debugLog(`editor.contentsMIMEType = ${editor.contentsMIMEType}`);
+
+    editor.selectAll();
+    editor.deleteSelection(editor.eNone, editor.eStrip);
+    editor.beginningOfDocument();
+
+    if (newBody === null) {
+      return;
+    }
+
+    const msgCompose = getMsgCompose();
+    if (msgCompose && msgCompose.composeHTML) {
+      editor.insertHTML(newBody.toString());
+    } else {
+      editor.insertText(newBody.toString());
+    }
+  }
+
+  function appendSignature() {
+    const msgCompose = getMsgCompose();
+    if (!msgCompose) {
+      log('ExecMail: missing nsMsgCompose object');
+      return;
+    }
+    const identity = msgCompose.identity;
+    if (identity) {
+      // calls nsMsgCompose::SetIdentity(nsIMsgIdentity*).
+      // signature will be updated.
+      msgCompose.identity = identity;
+    }
+  }
+
+  function appendAddresses(addrType, obj) {
+    const addrArray = (obj instanceof Array) ? obj : [obj];
+    for (const addr of addrArray) {
+      if (addr) {
+        // use `awAddRecipient` which is defined in
+        // chrome/messenger/content/messenger/messengercompose/addressingWidgetOverlay.js
+        awAddRecipient(addrType, addr.toString());
+      }
+    }
+  }
+
+  window.addEventListener('load', () => {
+    debugLog('ExecMail: onload');
+    window.document.getElementById('cmd_em_execute').addEventListener('command', execMail);
+    window.document.getElementById('cmd_em_insertsample').addEventListener('command', insertSample);
+  });
+
+})(window);

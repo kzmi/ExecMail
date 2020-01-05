@@ -1,0 +1,23 @@
+{
+  "manifest_version": 2,
+  "name": "ExecMail",
+  "developer": {
+    "name": "Iwasa Kazmi",
+    "url": "https://github.com/kzmi/ExecMail"
+  },
+  "version": "1.2.0",
+  "default_locale": "en",
+  "description": "__MSG_extensionDescription__",
+  "icons": {
+    "32": "icons/icon.svg",
+    "48": "icons/icon.svg",
+    "96": "icons/icon.svg"
+  },
+  "applications": {
+    "gecko": {
+      "id": "{27c84640-86d9-4f98-8ee8-3e205dbf3190}",
+      "strict_min_version": "68.0"
+    }
+  },
+  "legacy": true
+}

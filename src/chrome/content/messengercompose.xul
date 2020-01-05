@@ -3,20 +3,20 @@
 <overlay id="ExecMailMsgComposeWindow"
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
-  <script type="application/x-javascript" src="chrome://execmail/content/execmail.js"/>
-
   <stringbundleset id="stringbundleset">
     <stringbundle id="execmailBundle" src="chrome://execmail/locale/execmail.properties"/>
   </stringbundleset>
 
+  <script src="chrome://execmail/content/execmail.js"/>
+
   <commandset id="composeCommands">
-    <command id="cmd_em_execute" oncommand="gExecMail_0B2B5EAB.execMail()"/>
-    <command id="cmd_em_insertsample" oncommand="gExecMail_0B2B5EAB.insertSample()"/>
+    <command id="cmd_em_execute"/>
+    <command id="cmd_em_insertsample"/>
   </commandset>
 
   <menupopup id="optionsMenuPopup">
-    <menuseparator insertafter="fccMenu"/>
-    <menu id="menu_execmail" label="&execMail.label;" insertafter="fccMenu">
+    <menuseparator id="menu_execmail_separator" insertafter="fccMenu"/>
+    <menu id="menu_execmail" label="&execMail.label;" insertafter="menu_execmail_separator">
       <menupopup id="menu_execmailPopup">
         <menuitem id="menu_em_execute" label="&execMailExecute.label;" command="cmd_em_execute"/>
         <menuseparator/>
