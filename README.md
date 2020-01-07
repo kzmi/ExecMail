@@ -21,4 +21,5 @@ To try a sample :
 Version 1.0.* has a security risk.  
 The execution context is not separated from the context Thunderbird uses internally.  
 Thunderbird's internal objects are not protected from your script.  
+
 Since Version 1.1.0, Javscript code is executed in sandbox. The script cannot access Thunderbird's internal objects.  
