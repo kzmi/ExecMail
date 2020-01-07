@@ -139,6 +139,22 @@
     return source;
   }
 
+  function formatError(obj, lineNumberOffset) {
+    if (obj.message == null) {
+      return `${obj}`;
+    }
+
+    let message = '';
+    if (obj.name != null) {
+      message += `${obj.name} `;
+    }
+    if (obj.lineNumber != null && obj.columnNumber != null) {
+      message += `${obj.lineNumber - lineNumberOffset + 1}:${obj.columnNumber + 1} `;
+    }
+    message += obj.message;
+    return message;
+  }
+
   function execMail() {
     const editor = window.GetCurrentEditor();
     if (!editor) {
@@ -152,10 +168,24 @@
 
     const sandbox = Components.utils.Sandbox(window);
     sandbox.mail = mail;
+
+    // if error has occurred during Components.utils.evalInSandbox(),
+    // Error object will be thrown, and its `lineNumber` property has the value of
+    // (line number of `Components.utils.evalInSandbox()`) + (line number in the script).
+    //
+    // to get the line number in the script, we need to know the line number of
+    // `Components.utils.evalInSandbox()`.
+    let lineNumberOffset = 0;
+    try {
+      throw new Error('');
+    } catch (ex) {
+      lineNumberOffset = ex.lineNumber + 5; // add offset from 'throw new Error()' to 'Components.utils.evalInSandbox()'
+    }
     try {
       Components.utils.evalInSandbox(script, sandbox);
     } catch (ex) {
       reportError(ex);
+      Services.prompt.alert(window, "Execution Error", formatError(ex, lineNumberOffset));
       return;
     }
 
