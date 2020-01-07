@@ -105,7 +105,11 @@
       'mail.bcc.push(myAddress);\n' +
       '\n' +
       `// ${strbundle.getString('AppendSignature')}\n` +
-      'mail.appendSignature = true;\n';
+      'mail.appendSignature = true;\n' +
+      '\n' +
+      `// ${strbundle.getString('SignatureWillBeIgnored')}\n` +
+      '-- \n' +
+      `*** ${strbundle.getString('SignatureBlockFromHere')} ***\n`;
 
     return sampleCode;
   }
