@@ -196,7 +196,7 @@
     if (mail.body) {
       replaceBody(mail.body);
     } else {
-      replaceBody(null);
+      replaceBody('');
     }
 
     if (mail.appendSignature) {
@@ -223,7 +223,7 @@
       return;
     }
 
-    elem.value = newSubject.toString();
+    elem.value = `${newSubject}`;
   }
 
   function replaceBody(newBody) {
@@ -239,15 +239,11 @@
     editor.deleteSelection(editor.eNone, editor.eStrip);
     editor.beginningOfDocument();
 
-    if (newBody === null) {
-      return;
-    }
-
     const msgCompose = getMsgCompose();
     if (msgCompose && msgCompose.composeHTML) {
-      editor.insertHTML(newBody.toString());
+      editor.insertHTML(`${newBody}`);
     } else {
-      editor.insertText(newBody.toString());
+      editor.insertText(`${newBody}`);
     }
   }
 
@@ -271,7 +267,7 @@
       if (addr) {
         // use `awAddRecipient` which is defined in
         // chrome/messenger/content/messenger/messengercompose/addressingWidgetOverlay.js
-        awAddRecipient(addrType, addr.toString());
+        awAddRecipient(addrType, `${addr}`);
       }
     }
   }
